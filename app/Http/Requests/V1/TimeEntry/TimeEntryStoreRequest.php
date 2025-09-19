@@ -10,6 +10,7 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\Tag;
 use App\Models\Task;
+use App\Rules\NoOverlappingTimeEntriesRule;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Korridor\LaravelModelValidationRules\Rules\ExistsEloquent;
@@ -26,6 +27,8 @@ class TimeEntryStoreRequest extends BaseFormRequest
      */
     public function rules(): array
     {
+        $member = Member::query()->find($this->input('member_id'));
+        
         return [
             // ID of the organization member that the time entry should belong to
             'member_id' => [
@@ -60,10 +63,11 @@ class TimeEntryStoreRequest extends BaseFormRequest
                 })->uuid()->withMessage(__('validation.task_belongs_to_project')),
             ],
             // Start of time entry (Format: "Y-m-d\TH:i:s\Z", UTC timezone, Example: "2000-02-22T14:58:59Z")
-            'start' => [
+            'start' => array_filter([
                 'required',
                 'date_format:Y-m-d\TH:i:s\Z',
-            ],
+                $member ? new NoOverlappingTimeEntriesRule($member) : null,
+            ]),
             // End of time entry (Format: "Y-m-d\TH:i:s\Z", UTC timezone, Example: "2000-02-22T14:58:59Z")
             'end' => [
                 'nullable',
