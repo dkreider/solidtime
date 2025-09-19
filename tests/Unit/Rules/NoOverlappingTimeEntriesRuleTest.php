@@ -130,7 +130,7 @@ class NoOverlappingTimeEntriesRuleTest extends TestCaseWithDatabase
         $this->assertFalse($failedValidation, 'Validation should pass when time entries do not overlap');
     }
 
-    public function test_rule_fails_when_creating_active_entry_while_another_is_active(): void
+    public function test_rule_allows_active_entries_to_be_handled_by_controller(): void
     {
         // Arrange
         TimeEntry::factory()
@@ -158,7 +158,42 @@ class NoOverlappingTimeEntriesRuleTest extends TestCaseWithDatabase
         });
 
         // Assert
-        $this->assertTrue($failedValidation, 'Validation should fail when trying to create active entry while another is active');
+        $this->assertFalse($failedValidation, 'Validation should pass for active entries - let controller handle them');
+    }
+
+    public function test_rule_blocks_active_entry_that_would_overlap_completed_entry(): void
+    {
+        // Arrange
+        $existingStart = Carbon::now();
+        $existingEnd = Carbon::now()->addHour();
+        
+        TimeEntry::factory()
+            ->forOrganization($this->organization)
+            ->forMember($this->member)
+            ->create([
+                'start' => $existingStart,
+                'end' => $existingEnd,
+            ]);
+
+        $rule = new NoOverlappingTimeEntriesRule($this->member);
+
+        // Try to start active entry that would overlap with the completed entry
+        $newStart = $existingStart->copy()->addMinutes(30)->format('Y-m-d\TH:i:s\Z');
+
+        request()->merge([
+            'start' => $newStart,
+            'end' => null,
+        ]);
+
+        $failedValidation = false;
+
+        // Act
+        $rule->validate('start', $newStart, function (string $message) use (&$failedValidation): void {
+            $failedValidation = true;
+        });
+
+        // Assert
+        $this->assertTrue($failedValidation, 'Validation should fail when active entry would overlap with completed entry');
     }
 
     public function test_rule_excludes_current_time_entry_when_updating(): void

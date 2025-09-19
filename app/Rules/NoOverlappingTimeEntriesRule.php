@@ -59,16 +59,13 @@ class NoOverlappingTimeEntriesRule implements ValidationRule
                             });
                     });
                 } else {
-                    // For active time entries (no end time), check for conflicts
+                    // For active time entries (no end time), let the controller handle the active entry check
+                    // We only check for overlaps with completed entries that would conflict
                     $builder->where(function (Builder $subBuilder) use ($startDateTime): void {
-                        // No other active entries allowed
-                        $subBuilder->whereNull('end')
-                            // And no completed entries that start before our start and end after our start
-                            ->orWhere(function (Builder $completedBuilder) use ($startDateTime): void {
-                                $completedBuilder->whereNotNull('end')
-                                    ->where('start', '<=', $startDateTime)
-                                    ->where('end', '>', $startDateTime);
-                            });
+                        // Only check completed entries that start before our start and end after our start
+                        $subBuilder->whereNotNull('end')
+                            ->where('start', '<=', $startDateTime)
+                            ->where('end', '>', $startDateTime);
                     });
                 }
             });

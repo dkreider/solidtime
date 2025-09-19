@@ -50,6 +50,44 @@ class TimeEntryOverlapTest extends ApiEndpointTestAbstract
         $response->assertJsonValidationErrors(['start']);
     }
 
+    public function test_store_endpoint_fails_for_active_entry_overlap_with_completed_entry(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:create:own',
+        ]);
+
+        // Create an existing completed time entry
+        $existingStart = Carbon::now();
+        $existingEnd = Carbon::now()->addHour();
+        
+        TimeEntry::factory()
+            ->forOrganization($data->organization)
+            ->forMember($data->member)
+            ->create([
+                'start' => $existingStart,
+                'end' => $existingEnd,
+            ]);
+
+        Passport::actingAs($data->user);
+
+        // Try to create active entry that would overlap
+        $newStart = $existingStart->copy()->addMinutes(30);
+
+        // Act
+        $response = $this->postJson(route('api.v1.time-entries.store', [$data->organization->getKey()]), [
+            'description' => 'Test entry',
+            'billable' => true,
+            'start' => $newStart->format('Y-m-d\TH:i:s\Z'),
+            'end' => null, // Active entry
+            'member_id' => $data->member->getKey(),
+        ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['start']);
+    }
+
     public function test_store_endpoint_succeeds_when_time_entries_do_not_overlap(): void
     {
         // Arrange
