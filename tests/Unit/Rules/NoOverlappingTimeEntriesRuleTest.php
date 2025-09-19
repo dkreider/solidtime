@@ -193,4 +193,44 @@ class NoOverlappingTimeEntriesRuleTest extends TestCaseWithDatabase
         // Assert
         $this->assertFalse($failedValidation, 'Validation should pass when updating the same time entry');
     }
+
+    public function test_rule_detects_overlap_with_different_member(): void
+    {
+        // Arrange
+        $otherUser = User::factory()->create();
+        $otherMember = Member::factory()
+            ->forOrganization($this->organization)
+            ->forUser($otherUser)
+            ->create();
+
+        // Create time entry for other member
+        TimeEntry::factory()
+            ->forOrganization($this->organization)
+            ->forMember($otherMember)
+            ->create([
+                'start' => Carbon::now(),
+                'end' => Carbon::now()->addHour(),
+            ]);
+
+        $rule = new NoOverlappingTimeEntriesRule($this->member);
+
+        // Test creating overlapping entry for our member (should be allowed - different users)
+        $newStart = Carbon::now()->addMinutes(30)->format('Y-m-d\TH:i:s\Z');
+        $newEnd = Carbon::now()->addMinutes(90)->format('Y-m-d\TH:i:s\Z');
+
+        request()->merge([
+            'start' => $newStart,
+            'end' => $newEnd,
+        ]);
+
+        $failedValidation = false;
+
+        // Act
+        $rule->validate('start', $newStart, function (string $message) use (&$failedValidation): void {
+            $failedValidation = true;
+        });
+
+        // Assert
+        $this->assertFalse($failedValidation, 'Validation should pass when overlapping with different member\'s time entry');
+    }
 }

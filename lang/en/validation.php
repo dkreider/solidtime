@@ -207,6 +207,7 @@ return [
     'client_name_already_exists' => 'A client with the same name already exists in the organization.',
     'task_name_already_exists' => 'A task with the same name already exists in the project.',
     'invitation_already_exists' => 'The email has already been invited to the organization. Please wait for the user to accept the invitation or resend the invitation email.',
+    'time_entry_overlaps' => 'This time entry overlaps with an existing time entry.',
 
     'entities' => [
         'organization' => 'organization',

@@ -59,14 +59,14 @@ class NoOverlappingTimeEntriesRule implements ValidationRule
                             });
                     });
                 } else {
-                    // For active time entries (no end time), ensure no other active entries exist
-                    // and no completed entries would be overlapped by this new active entry
+                    // For active time entries (no end time), check for conflicts
                     $builder->where(function (Builder $subBuilder) use ($startDateTime): void {
                         // No other active entries allowed
                         $subBuilder->whereNull('end')
-                            // And no completed entries that end after our start time
+                            // And no completed entries that start before our start and end after our start
                             ->orWhere(function (Builder $completedBuilder) use ($startDateTime): void {
                                 $completedBuilder->whereNotNull('end')
+                                    ->where('start', '<=', $startDateTime)
                                     ->where('end', '>', $startDateTime);
                             });
                     });
@@ -81,7 +81,7 @@ class NoOverlappingTimeEntriesRule implements ValidationRule
         $overlappingEntry = $query->first();
 
         if ($overlappingEntry) {
-            $fail('This time entry overlaps with an existing time entry.');
+            $fail(__('validation.time_entry_overlaps'));
         }
     }
 }
